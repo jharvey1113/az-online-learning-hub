@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AZOL Hub Sheet — Demo</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:Roboto,Arial,sans-serif;font-size:13px;color:#1f1f1f;background:#f9fbfd;display:flex;flex-direction:column;height:100vh}
+  .top{display:flex;align-items:center;gap:12px;padding:8px 14px;background:#f9fbfd}
+  .logo{width:30px;height:38px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:17px}
+  .title{font-size:18px}
+  .sub{font-size:12px;color:#5f6368;margin-top:1px}
+  .chip{margin-left:auto;background:#fff7e6;color:#7a4b00;border:1px solid #f4dcae;border-radius:14px;padding:4px 11px;font-size:12px;font-weight:600}
+  .back{color:#0b57d0;text-decoration:none;font-weight:600;font-size:13px;margin-left:10px}
+  .fx{display:flex;align-items:center;gap:8px;background:#fff;border-top:1px solid #e1e3e6;border-bottom:1px solid #e1e3e6;padding:4px 10px;color:#5f6368}
+  .fx .cell{min-width:60px;border-right:1px solid #e1e3e6;padding-right:8px}
+  .grid{flex:1;overflow:auto;background:#fff}
+  table{border-collapse:collapse;font-size:13px}
+  th,td{border:1px solid #e1e3e6;padding:3px 8px;white-space:nowrap;max-width:420px;overflow:hidden;text-overflow:ellipsis;height:23px}
+  thead th{position:sticky;top:0;background:#f8f9fa;color:#5f6368;font-weight:400;text-align:center;z-index:2}
+  td.rn{position:sticky;left:0;background:#f8f9fa;color:#5f6368;text-align:center;min-width:42px;z-index:1}
+  tr.h td{font-weight:700;color:#fff;background:#002366}
+  tr.h td.rn{background:#f8f9fa;color:#5f6368;font-weight:400}
+  .pill{border-radius:10px;padding:1px 8px;font-size:12px;font-weight:600}
+  .tabs{display:flex;gap:2px;background:#f1f3f4;border-top:1px solid #e1e3e6;padding:0 8px;overflow-x:auto}
+  .tabs a{padding:9px 16px;color:#444;text-decoration:none;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent}
+  .tabs a.on{background:#fff;color:#0b57d0;border-bottom-color:#0b57d0;font-weight:600}
+  .drive{padding:18px 26px;overflow:auto;flex:1;background:#fff}
+  .drive h2{font-weight:400;font-size:20px;margin:0 0 4px}
+  .drive .path{color:#5f6368;margin-bottom:16px}
+  .file{display:flex;align-items:center;gap:14px;padding:10px 12px;border-bottom:1px solid #eef0f2;cursor:pointer}
+  .file:hover{background:#f1f5fe}
+  .file i{font-size:18px;width:22px;text-align:center}
+  .file .nm{flex:1}
+  .file .dt{color:#5f6368;width:150px}
+  .note{margin-top:18px;background:#fff7e6;color:#7a4b00;border:1px solid #f4dcae;border-radius:8px;padding:10px 14px;max-width:720px}
+</style>
+<script src="mock/data.js"></script>
+</head>
+<body>
+<div class="top">
+  <div class="logo" id="logo"></div>
+  <div><div class="title" id="docTitle"></div><div class="sub" id="docSub"></div></div>
+  <span class="chip"><i class="fa-solid fa-flask"></i> Demo data · view only</span>
+  <a class="back" href="index.html"><i class="fa-solid fa-arrow-left"></i> Back to hub</a>
+</div>
+<div id="app" style="flex:1;display:flex;flex-direction:column;min-height:0"></div>
+<script>
+(function () {
+  var D = window.DEMO, F = D.fmt;
+  var q = new URLSearchParams(location.search), tab = q.get('tab') || 'Roster';
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function stamp(d) { return F.mdy(d) + ' ' + d.getHours() + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function colName(i) { var s = ''; i++; while (i) { var m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+  var pills = {
+    High: 'background:#fde8e8;color:#8B0000', Medium: 'background:#fef3cd;color:#b45309', Low: 'background:#d4edda;color:#065f46',
+    Active: 'background:#fde8e8;color:#8B0000', Monitoring: 'background:#fef3cd;color:#b45309', Resolved: 'background:#d4edda;color:#065f46'
+  };
+
+  var TABS = {
+    Roster: { name: 'Student Roster', build: function () {
+      return [['Student Name', 'Grade', 'External ID', 'Student Email', 'Parent Email', 'Parent Phone', 'Parent Name']].concat(
+        D.students.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).map(function (s) {
+          return [s.name, s.grade, s.extId, s.email, s.parentEmails, s.guardians[0].phones[0].number, s.guardians[0].name];
+        }));
+    } },
+    Daily: { name: 'AZOL_Imported_Daily', build: function () {
+      var rows = [['HomeSchool', 'Name', 'CourseName', 'GradeLevel', 'ExternalUserId', 'ActualGrade', 'LastLogin', 'TargetProgress', 'Progress', 'LastActivity', 'Progress Delta', 'Student Activity Flag', 'Tier Level', 'Status']];
+      D.students.slice().sort(function (a, b) { return a.name.localeCompare(b.name); }).forEach(function (s) {
+        s.courses.forEach(function (c) {
+          var ll = s.lastLoginDate ? F.mdy(s.lastLoginDate) : '';
+          rows.push(['AZ Online Learning', s.name, c.course, s.grade, s.extId, s.profile === 'new' ? '' : c.grade.toFixed(2), ll, c.target.toFixed(2), c.progress.toFixed(2), ll,
+            c.deltaPts === null ? '' : c.deltaPts.toFixed(2), s.held ? 'Excused' : s.flag, s.held ? '—' : c.tier, s.held ? 'Excused (life event)' : s.profile === 'new' ? 'New / Awaiting data' : '']);
+        });
+      });
+      return rows;
+    } },
+    LifeEvents: { name: 'LifeEvents', build: function () {
+      return [['Timestamp', 'Student Name', 'Grade', 'Category', 'Severity', 'Note', 'Entered By', 'Status', 'Follow-Up Date']].concat(
+        D.lifeEvents.map(function (e) { return [stamp(e.timestamp), e.name, e.grade, e.category, { pill: e.severity }, e.note, e.enteredBy, { pill: e.status }, F.mdy(e.followUpDate)]; }));
+    } },
+    Outreach: { name: 'Outreach Log', build: function () {
+      return [['Date', 'Student Name', 'Grade', 'External ID', 'Reason', 'Sent By']].concat(
+        D.outreach.slice().reverse().map(function (r) { return [F.mdy(r[0]), r[1], r[2], r[3], r[4], r[5]]; }));
+    } },
+    Enrollment: { name: 'Enrollment Form Responses', build: function () {
+      return [['Timestamp', 'What Is The Purpose', 'Student Name', 'Grade', 'Special Info Enroll']].concat(
+        D.registrar.slice().reverse().map(function (r) { return [stamp(r.ts), r.purpose, r.name, r.grade, r.special]; }));
+    } },
+    Integrity: { name: 'Integrity Log', build: function () {
+      return [['Timestamp', 'Student Name', 'Student ID', 'School', 'Course', 'Teacher of Record', 'Nature of malfeasance', 'Incident Number and Outcome']].concat(
+        D.integrity.map(function (x) {
+          var nat = { AI: 'Suspected use of AI', Plagiarism: 'Plagiarism', 'Bot/Script': 'Bot / script / auto-clicker', Other: 'Other (sharing answers)' }[x.type];
+          return [x.date, x.name, x.id, x.campus, x.course, x.teacher, nat, x.status];
+        }));
+    } }
+  };
+
+  var FOLDERS = {
+    'Progress Monitoring': function () {
+      var out = [];
+      for (var w = 0; w < 6; w++) { var d = new Date(D.AS_OF); d.setDate(d.getDate() - 7 * w); out.push(['sheet', 'Weekly Snapshot ' + F.mdy(d), d]); }
+      return out;
+    },
+    'Tier Reports': function () {
+      var out = [];
+      [0, 10].forEach(function (back) {  // the last two tier email rounds
+        var d = D.schoolDaysBack(new Date(D.roundStart), back);
+        [9, 10, 11, 12].forEach(function (g) { out.push(['pdf', 'Grade ' + g + ' Tier Report – ' + F.mdy(d) + '.pdf', d]); });
+      });
+      return out;
+    },
+    'ME Archive': function () {
+      var out = [];
+      for (var w = 0; w < 4; w++) { var d = new Date(D.AS_OF); d.setDate(d.getDate() - 7 * w); out.push(['csv', 'Manage Enrollments ' + d.toISOString().slice(0, 10) + '.csv', d]); }
+      return out;
+    }
+  };
+
+  var app = document.getElementById('app');
+  if (tab === 'Folder') {
+    var f = q.get('f') || 'Progress Monitoring', list = (FOLDERS[f] || FOLDERS['Progress Monitoring'])();
+    document.title = f + ' — Drive (demo)';
+    document.getElementById('logo').style.background = '#f4b400';
+    document.getElementById('logo').innerHTML = '<i class="fa-solid fa-folder"></i>';
+    document.getElementById('docTitle').textContent = f + ' ' + D.SY_LABEL;
+    document.getElementById('docSub').textContent = 'Shared drive folder';
+    var icons = { pdf: '<i class="fa-solid fa-file-pdf" style="color:#d93025"></i>', csv: '<i class="fa-solid fa-file-csv" style="color:#188038"></i>', sheet: '<i class="fa-solid fa-table" style="color:#188038"></i>' };
+    app.innerHTML = '<div class="drive"><h2>' + esc(f) + '</h2><div class="path">My Drive › AZOL Hub Data › ' + esc(f) + '</div>' +
+      list.map(function (x) {
+        return '<div class="file" onclick="alert(\'Demo: files in this folder are placeholders.\')">' + icons[x[0]] + '<span class="nm">' + esc(x[1]) + '</span><span class="dt">' + F.mdy(x[2]) + '</span><span style="color:#5f6368">AZOL Hub</span></div>';
+      }).join('') +
+      '<div class="note"><b>Demo folder.</b> In the live hub these files are written automatically: the pipeline archives each Edgenuity export, the tier run saves a PDF per grade, and a weekly snapshot tracks tier changes over time.</div></div>';
+    return;
+  }
+
+  var T = TABS[tab] || TABS.Roster, rows = T.build();
+  document.title = T.name + ' — AZOL Hub sheet (demo)';
+  document.getElementById('logo').style.background = '#188038';
+  document.getElementById('logo').innerHTML = '<i class="fa-solid fa-table"></i>';
+  document.getElementById('docTitle').textContent = 'AZOL Hub ' + D.SY_LABEL + ' — Manage Enrollments Pipeline';
+  document.getElementById('docSub').textContent = rows.length - 1 + ' rows · ' + T.name;
+  var w = rows[0].length;
+  var head = '<tr><th></th>' + rows[0].map(function (_, i) { return '<th>' + colName(i) + '</th>'; }).join('') + '</tr>';
+  var body = rows.map(function (r, i) {
+    return '<tr' + (i === 0 ? ' class="h"' : '') + '><td class="rn">' + (i + 1) + '</td>' + r.map(function (v) {
+      if (v && typeof v === 'object' && v.pill) return '<td><span class="pill" style="' + (pills[v.pill] || '') + '">' + esc(v.pill) + '</span></td>';
+      return '<td title="' + esc(v) + '">' + esc(v) + '</td>';
+    }).join('') + '</tr>';
+  }).join('');
+  var filler = '';
+  for (var k = rows.length; k < rows.length + 12; k++) filler += '<tr><td class="rn">' + (k + 1) + '</td>' + new Array(w + 1).join('<td></td>') + '</tr>';
+  app.innerHTML = '<div class="fx"><span class="cell">A1</span><i>fx</i><span>' + esc(rows[0][0]) + '</span></div>' +
+    '<div class="grid"><table><thead>' + head + '</thead><tbody>' + body + filler + '</tbody></table></div>' +
+    '<div class="tabs">' + Object.keys(TABS).map(function (k) {
+      return '<a href="sheet.html?tab=' + k + '"' + (TABS[k] === T ? ' class="on"' : '') + '>' + esc(TABS[k].name) + '</a>';
+    }).join('') + '</div>';
+})();
+</script>
+</body>
+</html>

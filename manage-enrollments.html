@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Manage Enrollments — AZOL Demo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#12161d; --muted:#69727e; --faint:#98a1ad;
+    --paper:#f4f6f9; --panel:#ffffff; --line:#e4e8ee; --line2:#eef1f5;
+    --accent:#3a5bd9; --accent-soft:#eaefff;
+    --behind:#d93a49; --slip:#e08a12; --onpace:#2f9e57;
+    --behind-bg:#fdeced; --slip-bg:#fdf3e3; --onpace-bg:#e9f6ee;
+    --ui:'Inter',system-ui,sans-serif;
+    --display:'Space Grotesk',var(--ui);
+    --mono:'JetBrains Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{font-family:var(--ui); color:var(--ink); background:var(--paper); font-size:14px; line-height:1.45;
+    -webkit-font-smoothing:antialiased; display:flex; flex-direction:column; height:100vh;}
+
+  header{background:var(--panel); border-bottom:1px solid var(--line); padding:12px 20px 0;}
+  .headtop{display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding-bottom:12px}
+  .brand{display:flex; align-items:baseline; gap:10px; margin-right:auto}
+  .brand h1{font-family:var(--display); font-weight:700; font-size:18px; margin:0; letter-spacing:-.01em}
+  .brand .dot{width:8px;height:8px;border-radius:2px;background:var(--accent);display:inline-block;transform:translateY(-1px)}
+  .brand .sub{font-size:12px;color:var(--faint);font-family:var(--mono)}
+  .tabs{display:flex; gap:2px}
+  .tab{font-family:var(--ui); font-size:13.5px; font-weight:600; color:var(--muted); background:none;
+    border:none; border-bottom:2px solid transparent; padding:8px 14px 10px; cursor:pointer}
+  .tab:hover{color:var(--ink)}
+  .tab.active{color:var(--accent); border-bottom-color:var(--accent)}
+
+  .searchwrap{position:relative; flex:1 1 300px; min-width:220px; max-width:420px}
+  .searchwrap svg{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--faint)}
+  #search{width:100%; padding:10px 12px 10px 36px; font-family:var(--ui); font-size:14px;
+    border:1px solid var(--line); border-radius:9px; background:var(--paper); color:var(--ink); outline:none;}
+  #search:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); background:#fff}
+
+  .snapwrap{display:flex; align-items:center; gap:8px}
+  .snapwrap label{font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--faint)}
+  #snapPick{font-family:var(--ui); font-size:13px; color:var(--ink); background:#fff;
+    border:1px solid var(--line); border-radius:8px; padding:8px 10px; cursor:pointer; outline:none}
+  #snapPick:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+
+  .btn{font-family:var(--ui); font-size:13px; font-weight:600; cursor:pointer; border-radius:9px;
+    padding:9px 14px; white-space:nowrap; border:1px solid transparent}
+  .btn.primary{color:var(--accent); background:var(--accent-soft); border-color:#d5deff}
+  .btn.primary:hover{background:#e0e8ff}
+  .btn.ghost{color:var(--muted); background:#fff; border-color:var(--line)}
+  .btn.ghost:hover{color:var(--ink); border-color:var(--faint)}
+  .btn.sm{padding:7px 11px; font-size:12.5px}
+  .btn.solid{color:#fff; background:var(--accent); border-color:var(--accent)}
+  .btn.solid:hover{background:#2f4bc4}
+
+  .view{flex:1; display:none; flex-direction:column; min-height:0}
+  .view.active{display:flex}
+
+  .filters{background:var(--panel); border-bottom:1px solid var(--line); padding:11px 20px;
+    display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap}
+  .field{display:flex; flex-direction:column; gap:3px}
+  .field label{font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:var(--faint)}
+  select,.txtfilter{font-family:var(--ui); font-size:13px; color:var(--ink); background:#fff;
+    border:1px solid var(--line); border-radius:8px; padding:7px 9px; min-width:130px; outline:none}
+  select{cursor:pointer}
+  select:focus,.txtfilter:focus{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft)}
+  .chk{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--muted); cursor:pointer; padding-bottom:7px}
+  .chk input{accent-color:var(--accent); width:15px;height:15px}
+  .thresh{width:64px; min-width:0}
+
+  .toolbar{background:#fbfcfe; border-bottom:1px solid var(--line); padding:8px 20px;
+    display:flex; align-items:center; gap:10px}
+  .count{font-family:var(--mono); font-size:12px; color:var(--muted); margin-right:auto}
+  .count b{color:var(--ink); font-weight:600}
+  .range{font-family:var(--mono); font-size:12px; color:var(--muted); margin-right:auto}
+  .range b{color:var(--accent)}
+  .range a{color:var(--faint); text-decoration:underline; cursor:pointer; margin-left:10px}
+  .colwrap{position:relative}
+  .colpanel{position:absolute; right:0; top:calc(100% + 6px); z-index:20; width:260px; background:#fff;
+    border:1px solid var(--line); border-radius:12px; box-shadow:0 12px 30px rgba(20,30,60,.14); padding:10px; display:none}
+  .colpanel.open{display:block}
+  .colpanel .phead{display:flex; align-items:center; justify-content:space-between; padding:2px 6px 8px}
+  .colpanel .phead span{font-size:11px; font-weight:600; letter-spacing:.05em; text-transform:uppercase; color:var(--faint)}
+  .colpanel .phead a{font-size:12px; color:var(--accent); cursor:pointer; font-weight:600}
+  .collist{max-height:340px; overflow:auto; padding-right:2px}
+  .collist label{display:flex; align-items:center; gap:9px; padding:6px; border-radius:7px; font-size:13px; cursor:pointer}
+  .collist label:hover{background:var(--paper)}
+  .collist input{accent-color:var(--accent); width:15px;height:15px; cursor:pointer}
+
+  .tablewrap{flex:1; overflow:auto}
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  thead th{position:sticky; top:0; z-index:2; background:#fbfcfe; text-align:left; font-family:var(--ui);
+    font-weight:600; font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--muted);
+    padding:10px 14px; border-bottom:1px solid var(--line); white-space:nowrap; cursor:pointer; user-select:none}
+  thead th:hover{color:var(--ink)}
+  thead th .arrow{opacity:.35; margin-left:4px; font-size:10px}
+  thead th.sorted{color:var(--accent)}
+  thead th.sorted .arrow{opacity:1}
+  th.num, td.num{text-align:right; font-family:var(--mono)}
+  tbody td{padding:9px 14px; border-bottom:1px solid var(--line2); white-space:nowrap}
+  tbody tr:hover{background:#f8faff}
+  td.name{font-weight:600; white-space:normal; min-width:150px}
+  td.id{font-family:var(--mono); color:var(--muted); font-size:12px}
+  td.course{white-space:normal; max-width:280px; color:#333}
+  td.school,td.text{color:var(--muted); font-size:12px}
+  .prog{display:flex; align-items:center; gap:8px; justify-content:flex-end}
+  .bar{width:46px; height:5px; border-radius:3px; background:var(--line); overflow:hidden}
+  .bar span{display:block; height:100%; background:var(--accent)}
+  .pace{font-family:var(--mono); font-weight:500; padding:2px 7px; border-radius:5px; font-size:12px}
+  .pace.behind{color:var(--behind); background:var(--behind-bg)}
+  .pace.slip{color:var(--slip); background:var(--slip-bg)}
+  .pace.onpace{color:var(--onpace); background:var(--onpace-bg)}
+  .grade-low{color:var(--behind); font-weight:600}
+  .stale{color:var(--faint)}
+  .delta{font-family:var(--mono); font-weight:600; padding:2px 7px; border-radius:5px}
+  .delta.up{color:var(--onpace); background:var(--onpace-bg)}
+  .delta.flat{color:var(--behind); background:var(--behind-bg)}
+  .delta.slip{color:var(--slip); background:var(--slip-bg)}
+  .delta.new{color:var(--accent); background:var(--accent-soft)}
+  .tag{font-size:10.5px; font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--faint)}
+
+  .stage{flex:1; display:flex; align-items:center; justify-content:center; padding:24px}
+  .card{width:min(620px,100%); border:1px solid var(--line); border-radius:16px; background:var(--panel);
+    padding:36px; text-align:center; box-shadow:0 8px 30px rgba(20,30,60,.05)}
+  .card h2{font-family:var(--display); font-weight:600; font-size:20px; margin:0 0 8px}
+  .card p{color:var(--muted); margin:0 0 22px; font-size:13.5px}
+  .cmp-selects{display:flex; gap:14px; justify-content:center; align-items:flex-end; flex-wrap:wrap; margin-bottom:20px}
+  .cmp-selects .field{align-items:flex-start}
+  .cmp-selects select{min-width:170px}
+  .card .hint{font-family:var(--mono); font-size:11.5px; color:var(--faint); margin-top:18px}
+  .empty{color:var(--muted); text-align:center}
+  .empty b{color:var(--ink)}
+  .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--accent);border-radius:50%;
+    animation:spin 0.8s linear infinite; margin:0 auto 16px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .hidden{display:none!important}
+</style>
+<script src="mock/data.js"></script>
+<script src="mock/server.js"></script>
+</head>
+<body>
+
+<header>
+  <div class="headtop">
+    <div class="brand"><h1><span class="dot"></span>Manage Enrollments</h1><span class="sub" style="background:#fff7e6;color:#7a4b00;border-radius:6px;padding:2px 7px;">demo data</span><span class="sub" id="filestamp">loading…</span></div>
+    <div class="searchwrap" id="searchwrap">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search" type="text" placeholder="Search a student by name or ID…" autocomplete="off" disabled>
+    </div>
+    <div class="snapwrap" id="snapwrap">
+      <label>Report</label>
+      <select id="snapPick" onchange="onSnapChange()" disabled><option>loading…</option></select>
+    </div>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-view="browse">Enrollments</button>
+    <button class="tab" data-view="compare">Progress compare</button>
+  </div>
+</header>
+
+<div class="view active" id="view-browse">
+  <div class="filters hidden" id="filters">
+    <div class="field"><label>Grade</label><select id="f-grade"><option value="">All grades</option></select></div>
+    <div class="field"><label>School</label><select id="f-school"><option value="">All schools</option></select></div>
+    <div class="field"><label>Subject</label><select id="f-subject"><option value="">All subjects</option></select></div>
+    <div class="field"><label>Course contains</label><input id="f-course" class="txtfilter" type="text" placeholder="e.g. Algebra II" autocomplete="off"></div>
+    <button class="btn ghost sm" id="clearfilters">Clear all</button>
+  </div>
+  <div class="toolbar hidden" id="toolbar">
+    <div class="count" id="count"></div>
+    <div class="colwrap">
+      <button class="btn ghost sm" id="colbtn">Columns ▾</button>
+      <div class="colpanel" id="colpanel"><div class="phead"><span>Show &amp; export</span><a id="colreset">Reset</a></div><div class="collist" id="collist"></div></div>
+    </div>
+    <button class="btn primary sm" id="exportbtn">Export view</button>
+  </div>
+  <div class="stage" id="stage">
+    <div class="card">
+      <div class="spinner" id="bootspin"></div>
+      <h2 id="bootTitle">Loading the newest report…</h2>
+      <p id="bootMsg">Reading the fictional demo archive (4 weekly Edgenuity exports).</p>
+    </div>
+  </div>
+  <div class="tablewrap hidden" id="tablewrap"><table><thead><tr id="headrow"></tr></thead><tbody id="tbody"></tbody></table></div>
+</div>
+
+<div class="view" id="view-compare">
+  <div class="filters hidden" id="c-filters">
+    <div class="field"><label>Search student</label><input id="c-search" class="txtfilter" type="text" placeholder="name or ID" autocomplete="off"></div>
+    <div class="field"><label>Grade</label><select id="c-grade"><option value="">All grades</option></select></div>
+    <div class="field"><label>Course contains</label><input id="c-course" class="txtfilter" type="text" placeholder="e.g. Algebra II" autocomplete="off"></div>
+    <div class="field"><label>Flag gain under</label><input id="c-thresh" class="txtfilter thresh num" type="number" value="1" min="0" step="0.5"></div>
+    <label class="chk"><input type="checkbox" id="c-stalled">Stalled only</label>
+    <label class="chk"><input type="checkbox" id="c-newincl" checked>Include new</label>
+  </div>
+  <div class="toolbar hidden" id="c-toolbar">
+    <div class="range" id="c-range"></div>
+    <button class="btn primary sm" id="c-export">Export breakdown</button>
+  </div>
+  <div class="stage" id="c-stage">
+    <div class="card">
+      <h2>Compare two reports</h2>
+      <p>See how far each student moved between two dates. Matched by Enrollment ID.</p>
+      <div class="cmp-selects">
+        <div class="field"><label>Earlier report</label><select id="cmp-a"></select></div>
+        <div class="field"><label>Later report</label><select id="cmp-b"></select></div>
+        <button class="btn solid" id="cmp-run">Compare</button>
+      </div>
+      <div class="hint" id="cmp-hint">Both lists are pulled from your report archive.</div>
+    </div>
+  </div>
+  <div class="tablewrap hidden" id="c-tablewrap"><table><thead><tr id="c-headrow"></tr></thead><tbody id="c-tbody"></tbody></table></div>
+</div>
+
+<script>
+/* ================= shared model ================= */
+const FIELD_META = {
+  'Name':{label:'Student', cls:'name'}, 'Course Name':{label:'Course', cls:'course'},
+  "Course's School":{label:"Course's School", cls:'school'}, 'Home School':{label:'Home School', cls:'school'},
+  'Student Grade Level':{label:'Grade', cls:'num', fmt:'gradeLv'}, 'User ID':{label:'User ID', cls:'id'},
+  'External ID':{label:'External ID', cls:'id'}, 'Enrollment ID':{label:'Enrollment ID', cls:'id'},
+  'External Course Code':{label:'Course Code', cls:'id'}, 'Teachers':{label:'Teacher(s)', cls:'text'},
+  'Subject':{label:'Subject', cls:'text'}, 'Series':{label:'Series', cls:'text'},
+  'Target Progress':{label:'Target %', cls:'num', fmt:'pct'}, 'Progress':{label:'Progress', cls:'num', fmt:'pct', bar:true},
+  'Pacing':{label:'Pacing', cls:'num', fmt:'pct', pace:true}, 'Overall Grade':{label:'Overall', cls:'num', fmt:'pct', gradeCell:true},
+  'Relative Grade':{label:'Relative', cls:'num', fmt:'pct'}, 'Actual Grade':{label:'Actual', cls:'num', fmt:'pct'},
+  'Active Time':{label:'Active', cls:'num', fmt:'time'}, 'Date Enrolled':{label:'Enrolled', cls:'num', fmt:'date'},
+  'Start Date':{label:'Start', cls:'num', fmt:'date'}, 'Target Date':{label:'Target date', cls:'num', fmt:'date'},
+  'First Gradebook Entry':{label:'First activity', cls:'num', fmt:'date'}, 'Last Gradebook Entry':{label:'Last activity', cls:'num', fmt:'date'},
+  'Assignment Status':{label:'Assign. status', cls:'text'}, 'Date Archived':{label:'Archived', cls:'num', fmt:'date'},
+  'Enrollment Status':{label:'Status', cls:'text'}, 'ELL':{label:'ELL', cls:'text'}, 'Edition':{label:'Edition', cls:'text'},
+  'STBID':{label:'STBID', cls:'id'}, 'IEP':{label:'IEP', cls:'text'},
+};
+const CANON = Object.keys(FIELD_META);
+const DEFAULT_COLS = ['Name','Student Grade Level','Home School','Course Name','Progress','Pacing','Overall Grade','Active Time','Last Gradebook Entry'];
+const SEARCH_FIELDS = ['Name','User ID','External ID'];
+
+const pctNum  = v => { const n=parseFloat(String(v).replace('%','')); return isNaN(n)?null:n; };
+const timeSec = v => { const m=String(v).match(/^(\d+):(\d\d):(\d\d)$/); return m?(+m[1]*3600+ +m[2]*60+ +m[3]):null; };
+const dateVal = v => { const t=Date.parse(String(v)); return isNaN(t)?null:t; };
+const gradeNum= v => { const n=parseInt(v,10); return isNaN(n)?999:n; };
+const meta    = k => FIELD_META[k] || {label:k, cls:'text'};
+const keyOf   = r => { const e=String(r['Enrollment ID']||'').trim(); return e || (r['User ID']+'|'+r['Course Name']); };
+const fmtDay  = ts => new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'});
+const val = id => document.getElementById(id).value;
+function escHtml(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function escAttr(s){return escHtml(s).replace(/'/g,'&#39;');}
+function downloadCSV(csv,name){const b=new Blob([csv],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');
+  a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+function rowsToObjs(fields,rows){return rows.map(function(row){var o={};for(var i=0;i<fields.length;i++)o[fields[i]]=row[i];return o;});}
+
+/* ================= tabs ================= */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x===t));
+  const v=t.dataset.view;
+  document.getElementById('view-browse').classList.toggle('active',v==='browse');
+  document.getElementById('view-compare').classList.toggle('active',v==='compare');
+  document.getElementById('searchwrap').style.visibility = v==='browse' ? 'visible' : 'hidden';
+  document.getElementById('snapwrap').style.visibility = v==='browse' ? 'visible' : 'hidden';
+});
+
+/* ================= SERVER BOOTSTRAP ================= */
+let SNAPS=[], REPORTS={}, currentBrowseId=null;
+
+function boot(){
+  google.script.run
+    .withSuccessHandler(function(res){
+      if(!res || !res.ok){ bootError((res&&res.message)||'Could not load reports.'); return; }
+      SNAPS = res.snapshots || [];
+      REPORTS[res.newest.id] = res.newest;
+      buildSnapPickers();
+      loadBrowse(res.newest);
+    })
+    .withFailureHandler(function(err){ bootError(err && err.message ? err.message : String(err)); })
+    .meBootstrap();
+}
+function bootError(msg){
+  document.getElementById('bootspin').classList.add('hidden');
+  document.getElementById('bootTitle').textContent='Couldn’t load the archive';
+  document.getElementById('bootTitle').style.color='var(--behind)';
+  document.getElementById('bootMsg').textContent=msg;
+  document.getElementById('filestamp').textContent='not loaded';
+}
+function buildSnapPickers(){
+  const opts = SNAPS.map(s=>`<option value="${escAttr(s.id)}">${escHtml(s.label)}</option>`).join('');
+  const sp=document.getElementById('snapPick'); sp.innerHTML=opts||'<option>none</option>'; sp.disabled=false;
+  const a=document.getElementById('cmp-a'), b=document.getElementById('cmp-b');
+  a.innerHTML=opts; b.innerHTML=opts;
+  if(SNAPS.length>=2){ a.value=SNAPS[1].id; b.value=SNAPS[0].id; }
+  else if(SNAPS.length===1){ a.value=SNAPS[0].id; b.value=SNAPS[0].id; }
+  if(SNAPS.length<2){
+    document.getElementById('cmp-run').disabled=true;
+    document.getElementById('cmp-hint').innerHTML='Only one report is in your archive so far — Progress Compare needs at least two dated reports. It’ll light up as more accumulate.';
+  }
+}
+function onSnapChange(){
+  const id=val('snapPick');
+  if(id===currentBrowseId) return;
+  if(REPORTS[id]){ loadBrowse(REPORTS[id]); return; }
+  document.getElementById('filestamp').textContent='loading…';
+  google.script.run
+    .withSuccessHandler(function(rep){ if(!rep||!rep.ok){alert((rep&&rep.message)||'Load failed');return;} REPORTS[id]=rep; loadBrowse(rep); })
+    .withFailureHandler(function(err){ alert('Load failed: '+(err&&err.message?err.message:err)); })
+    .meGetReport(id);
+}
+function loadBrowse(rep){
+  currentBrowseId=rep.id;
+  document.getElementById('snapPick').value=rep.id;
+  ingest(rowsToObjs(rep.fields, rep.rows), rep.fields, rep.name+' · '+rep.label);
+}
+
+/* ================= BROWSE ================= */
+let ROWS=[], ALL_FIELDS=[], activeCols=[], sortKey='Last Gradebook Entry', sortDir=-1;
+
+function ingest(data, fields, filename){
+  ROWS = data.filter(r=>r['Name']).map(r=>{ r._s=SEARCH_FIELDS.map(f=>r[f]||'').join(' ').toLowerCase(); return r; });
+  ALL_FIELDS = CANON.filter(f=>fields.includes(f)).concat(fields.filter(f=>!FIELD_META[f]));
+  activeCols = ALL_FIELDS.filter(f=>DEFAULT_COLS.includes(f));
+  if(!ALL_FIELDS.includes(sortKey)) sortKey=activeCols[0]||ALL_FIELDS[0];
+  buildFilter('f-grade',[...new Set(ROWS.map(r=>r['Student Grade Level']).filter(Boolean))].sort((a,b)=>gradeNum(a)-gradeNum(b)));
+  buildFilter('f-school',[...new Set(ROWS.map(r=>r['Home School']).filter(Boolean))].sort());
+  buildFilter('f-subject',[...new Set(ROWS.map(r=>r['Subject']).filter(Boolean))].sort());
+  buildColPicker(); buildHead();
+  document.getElementById('filestamp').textContent = filename+' · '+ROWS.length+' rows';
+  document.getElementById('search').disabled=false;
+  document.getElementById('filters').classList.remove('hidden');
+  document.getElementById('toolbar').classList.remove('hidden');
+  document.getElementById('stage').classList.add('hidden');
+  document.getElementById('tablewrap').classList.remove('hidden');
+  render();
+}
+function buildFilter(id,vals){const s=document.getElementById(id);s.innerHTML=s.options[0].outerHTML+vals.map(v=>`<option value="${escAttr(v)}">${escHtml(v)}</option>`).join('');}
+function buildColPicker(){
+  document.getElementById('collist').innerHTML = ALL_FIELDS.map(f=>`<label><input type="checkbox" data-col="${escAttr(f)}" ${activeCols.includes(f)?'checked':''}><span>${escHtml(f)}</span></label>`).join('');
+  document.querySelectorAll('#collist input').forEach(cb=>cb.onchange=()=>{
+    const set=new Set([...document.querySelectorAll('#collist input:checked')].map(i=>i.dataset.col));
+    activeCols=ALL_FIELDS.filter(f=>set.has(f));
+    if(activeCols.length && !activeCols.includes(sortKey)) sortKey=activeCols[0];
+    buildHead(); render();
+  });
+}
+function buildHead(){
+  document.getElementById('headrow').innerHTML = activeCols.map(k=>{
+    const m=meta(k), s=k===sortKey, ar=s?(sortDir>0?'▲':'▼'):'';
+    return `<th data-key="${escAttr(k)}" class="${m.cls==='num'?'num':''} ${s?'sorted':''}">${escHtml(m.label)}<span class="arrow">${ar}</span></th>`;
+  }).join('');
+  document.querySelectorAll('#headrow th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.key, m=meta(k);
+    if(k===sortKey) sortDir=-sortDir;
+    else { sortKey=k; sortDir=(['name','course','text','school'].includes(m.cls))?1:-1; }
+    buildHead(); render();
+  });
+}
+function parsedVal(r,key){const f=meta(key).fmt,raw=r[key];
+  if(f==='pct')return pctNum(raw); if(f==='time')return timeSec(raw);
+  if(f==='date')return dateVal(raw); if(f==='gradeLv')return gradeNum(raw);
+  return String(raw||'').toLowerCase();}
+function getRows(){
+  const tok=val('search').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const fg=val('f-grade'),fs=val('f-school'),fj=val('f-subject'),fc=val('f-course').trim().toLowerCase();
+  let rows=ROWS.filter(r=>{
+    if(fg&&r['Student Grade Level']!==fg)return false;
+    if(fs&&r['Home School']!==fs)return false;
+    if(fj&&r['Subject']!==fj)return false;
+    if(fc&&!String(r['Course Name']||'').toLowerCase().includes(fc))return false;
+    if(tok.length&&!tok.every(t=>r._s.includes(t)))return false;
+    return true;
+  });
+  rows.sort((a,b)=>{let av=parsedVal(a,sortKey),bv=parsedVal(b,sortKey);
+    if(av==null&&bv==null)return 0; if(av==null)return 1; if(bv==null)return -1;
+    if(av<bv)return -sortDir; if(av>bv)return sortDir; return 0;});
+  return rows;
+}
+function render(){
+  const rows=getRows(), students=new Set(rows.map(r=>r['User ID'])).size;
+  document.getElementById('count').innerHTML=`<b>${rows.length}</b> enrollment${rows.length===1?'':'s'} · <b>${students}</b> student${students===1?'':'s'} · ${activeCols.length} column${activeCols.length===1?'':'s'}`;
+  const tb=document.getElementById('tbody');
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="${activeCols.length||1}"><div class="empty" style="padding:48px">No enrollments match. <b>Clear all</b> to reset.</div></td></tr>`;return;}
+  tb.innerHTML=rows.map(rowHtml).join('');
+}
+function rowHtml(r){
+  return '<tr>'+activeCols.map(k=>{const m=meta(k),raw=r[k]||'';
+    if(m.bar){const p=pctNum(raw),w=p==null?0:Math.max(0,Math.min(100,p));return `<td class="num"><div class="prog"><div class="bar"><span style="width:${w}%"></span></div>${escHtml(raw)}</div></td>`;}
+    if(m.pace){const p=pctNum(raw);let c='onpace';if(p!=null){if(p<=-10)c='behind';else if(p<0)c='slip';}return `<td class="num"><span class="pace ${p==null?'':c}">${escHtml(raw)}</span></td>`;}
+    if(m.gradeCell){const p=pctNum(raw);return `<td class="num ${p!=null&&p<60?'grade-low':''}">${escHtml(raw)}</td>`;}
+    if(m.fmt==='date'){return `<td class="num ${dateVal(raw)==null?'stale':''}">${escHtml(raw||'—')}</td>`;}
+    return `<td class="${m.cls}">${escHtml(raw)}</td>`;
+  }).join('')+'</tr>';
+}
+function exportView(){
+  const rows=getRows(); if(!rows.length){alert('Nothing to export — no rows match the current filters.');return;}
+  const csv=Papa.unparse({fields:activeCols,data:rows.map(r=>activeCols.map(k=>r[k]??''))});
+  downloadCSV(csv,'enrollment-view_'+new Date().toISOString().slice(0,10)+'.csv');
+}
+
+/* ================= COMPARE ================= */
+let CMP={a:null,b:null};
+let CREC=[], cSortKey='dProg', cSortDir=1;
+const C_COLS=[
+  {key:'name',   label:'Student',     cls:'name',  get:r=>r.name},
+  {key:'grade',  label:'Gr',          cls:'num',   get:r=>gradeNum(r.grade)},
+  {key:'course', label:'Course',      cls:'course',get:r=>r.course},
+  {key:'school', label:'School',      cls:'school',get:r=>r.school},
+  {key:'prev',   label:'Was',         cls:'num',   get:r=>r.prevP},
+  {key:'cur',    label:'Now',         cls:'num',   get:r=>r.curP},
+  {key:'dProg',  label:'Δ Progress',  cls:'num',   get:r=>r.dProg},
+  {key:'dAct',   label:'Δ Active hrs',cls:'num',   get:r=>r.dAct},
+  {key:'status', label:'',            cls:'text',  get:r=>r.status},
+];
+
+function runCompare(){
+  const idA=val('cmp-a'), idB=val('cmp-b');
+  if(idA===idB){ alert('Pick two different reports to compare.'); return; }
+  const btn=document.getElementById('cmp-run'); btn.disabled=true; const label=btn.textContent; btn.textContent='Loading…';
+  Promise.all([fetchReport(idA), fetchReport(idB)]).then(function(both){
+    btn.disabled=false; btn.textContent=label;
+    let a=both[0], b=both[1];
+    if((a.ts||0) > (b.ts||0)){ const t=a; a=b; b=t; }   // ensure earlier → later
+    CMP.a={ rows:rowsToObjs(a.fields,a.rows), name:a.name, date:a.ts, label:a.label };
+    CMP.b={ rows:rowsToObjs(b.fields,b.rows), name:b.name, date:b.ts, label:b.label };
+    buildCompare();
+  }).catch(function(err){ btn.disabled=false; btn.textContent=label; alert('Compare failed: '+(err&&err.message?err.message:err)); });
+}
+function fetchReport(id){
+  if(REPORTS[id]) return Promise.resolve(REPORTS[id]);
+  return new Promise(function(res,rej){
+    google.script.run
+      .withSuccessHandler(function(rep){ if(!rep||!rep.ok){rej(new Error((rep&&rep.message)||'load error'));return;} REPORTS[id]=rep; res(rep); })
+      .withFailureHandler(function(e){ rej(e); })
+      .meGetReport(id);
+  });
+}
+function buildCompare(){
+  const prev=CMP.a, cur=CMP.b;
+  const idx=new Map(prev.rows.map(r=>[keyOf(r),r]));
+  CREC = cur.rows.map(r=>{
+    const p=idx.get(keyOf(r));
+    const curP=pctNum(r['Progress']), prevP=p?pctNum(p['Progress']):null;
+    const curA=timeSec(r['Active Time']), prevA=p?timeSec(p['Active Time']):null;
+    return {
+      name:r['Name'], uid:r['User ID'], extid:r['External ID'], grade:r['Student Grade Level'],
+      course:r['Course Name'], school:r['Home School'],
+      prevP, curP,
+      dProg:(p&&curP!=null&&prevP!=null)?+(curP-prevP).toFixed(2):null,
+      dAct:(p&&curA!=null&&prevA!=null)?+((curA-prevA)/3600).toFixed(1):null,
+      status:p?'':'new',
+      _s:[r['Name'],r['User ID'],r['External ID']].join(' ').toLowerCase(),
+    };
+  });
+  const days=(prev.date&&cur.date)?Math.round((cur.date-prev.date)/86400000):null;
+  const base=(prev.date&&cur.date)?`<b>${fmtDay(prev.date)} → ${fmtDay(cur.date)}</b>${days?` · ${days} day${days===1?'':'s'}`:''}`:'<b>Earlier → Later</b>';
+  const rng=document.getElementById('c-range');
+  rng.dataset.base=base;
+  rng.innerHTML=base+'<a id="c-change">change dates</a>';
+  document.getElementById('c-change').onclick=showCompareSetup;
+  buildFilter2(); buildCHead();
+  document.getElementById('c-filters').classList.remove('hidden');
+  document.getElementById('c-toolbar').classList.remove('hidden');
+  document.getElementById('c-stage').classList.add('hidden');
+  document.getElementById('c-tablewrap').classList.remove('hidden');
+  crender();
+}
+function buildFilter2(){
+  const grades=[...new Set(CREC.map(r=>r.grade).filter(Boolean))].sort((a,b)=>gradeNum(a)-gradeNum(b));
+  const s=document.getElementById('c-grade'); s.innerHTML=s.options[0].outerHTML+grades.map(g=>`<option value="${escAttr(g)}">${escHtml(g)}</option>`).join('');
+}
+function buildCHead(){
+  document.getElementById('c-headrow').innerHTML=C_COLS.map(c=>{
+    const s=c.key===cSortKey, ar=s?(cSortDir>0?'▲':'▼'):'';
+    return `<th data-key="${c.key}" class="${c.cls==='num'?'num':''} ${s?'sorted':''}">${c.label}<span class="arrow">${ar}</span></th>`;
+  }).join('');
+  document.querySelectorAll('#c-headrow th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.key, c=C_COLS.find(x=>x.key===k);
+    if(k===cSortKey) cSortDir=-cSortDir;
+    else { cSortKey=k; cSortDir=(['name','course','school'].includes(c.cls))?1:-1; if(k==='dProg')cSortDir=1; }
+    buildCHead(); crender();
+  });
+}
+function cGetRows(){
+  const tok=val('c-search').trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const g=val('c-grade'), fc=val('c-course').trim().toLowerCase();
+  const thr=parseFloat(val('c-thresh')), stalled=document.getElementById('c-stalled').checked, inclNew=document.getElementById('c-newincl').checked;
+  const acc=C_COLS.find(c=>c.key===cSortKey).get;
+  let rows=CREC.filter(r=>{
+    if(!inclNew && r.status==='new') return false;
+    if(g && r.grade!==g) return false;
+    if(fc && !String(r.course||'').toLowerCase().includes(fc)) return false;
+    if(tok.length && !tok.every(t=>r._s.includes(t))) return false;
+    if(stalled){ if(r.dProg==null) return false; if(!(r.dProg < (isNaN(thr)?1:thr))) return false; }
+    return true;
+  });
+  rows.sort((a,b)=>{let av=acc(a),bv=acc(b);
+    if(av==null&&bv==null)return 0; if(av==null)return 1; if(bv==null)return -1;
+    if(av<bv)return -cSortDir; if(av>bv)return cSortDir; return 0;});
+  return rows;
+}
+function crender(){
+  const rows=cGetRows(), thr=isNaN(parseFloat(val('c-thresh')))?1:parseFloat(val('c-thresh'));
+  const students=new Set(rows.map(r=>r.uid)).size;
+  const moved=rows.filter(r=>r.dProg!=null&&r.dProg>=thr).length;
+  const stalledN=rows.filter(r=>r.dProg!=null&&r.dProg<thr).length;
+  const rng=document.getElementById('c-range');
+  rng.innerHTML=(rng.dataset.base||'')+` · <span style="color:var(--faint)">${students} students · ${moved} moved · ${stalledN} stalled</span><a id="c-change">change dates</a>`;
+  document.getElementById('c-change').onclick=showCompareSetup;
+  const tb=document.getElementById('c-tbody');
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="${C_COLS.length}"><div class="empty" style="padding:48px">No students match these filters.</div></td></tr>`;return;}
+  tb.innerHTML=rows.map(r=>crowHtml(r,thr)).join('');
+}
+function crowHtml(r,thr){
+  const pct=v=>v==null?'—':v+'%';
+  let d='—', cls='';
+  if(r.status==='new'){ d='new'; cls='new'; }
+  else if(r.dProg!=null){ d=(r.dProg>0?'+':'')+r.dProg+'%'; cls=r.dProg<=0?'flat':(r.dProg<thr?'slip':'up'); }
+  const dAct=r.dAct==null?'—':((r.dAct>0?'+':'')+r.dAct);
+  return `<tr>
+    <td class="name">${escHtml(r.name)}</td>
+    <td class="num">${escHtml(r.grade||'')}</td>
+    <td class="course">${escHtml(r.course)}</td>
+    <td class="school">${escHtml(r.school||'')}</td>
+    <td class="num">${pct(r.prevP)}</td>
+    <td class="num">${pct(r.curP)}</td>
+    <td class="num"><span class="delta ${cls}">${d}</span></td>
+    <td class="num">${dAct}</td>
+    <td class="text"><span class="tag">${escHtml(r.status)}</span></td>
+  </tr>`;
+}
+function cExport(){
+  const rows=cGetRows(); if(!rows.length){alert('Nothing to export.');return;}
+  const fields=['Student','User ID','External ID','Grade','Course','Home School','Progress was','Progress now','Delta progress','Delta active hrs','Status'];
+  const data=rows.map(r=>[r.name,r.uid,r.extid,r.grade,r.course,r.school,r.prevP,r.curP,r.dProg,r.dAct,r.status||'matched']);
+  const label=(CMP.a&&CMP.b&&CMP.a.date&&CMP.b.date)?`${new Date(CMP.a.date).toISOString().slice(0,10)}_to_${new Date(CMP.b.date).toISOString().slice(0,10)}`:new Date().toISOString().slice(0,10);
+  downloadCSV(Papa.unparse({fields,data}),'progress-breakdown_'+label+'.csv');
+}
+function showCompareSetup(){
+  document.getElementById('c-filters').classList.add('hidden');
+  document.getElementById('c-toolbar').classList.add('hidden');
+  document.getElementById('c-tablewrap').classList.add('hidden');
+  document.getElementById('c-stage').classList.remove('hidden');
+}
+
+/* ================= wiring ================= */
+document.getElementById('search').oninput=render;
+['f-grade','f-school','f-subject'].forEach(id=>document.getElementById(id).onchange=render);
+document.getElementById('f-course').oninput=render;
+document.getElementById('clearfilters').onclick=()=>{document.getElementById('search').value='';['f-grade','f-school','f-subject'].forEach(id=>document.getElementById(id).value='');document.getElementById('f-course').value='';render();};
+document.getElementById('exportbtn').onclick=exportView;
+
+const colpanel=document.getElementById('colpanel');
+document.getElementById('colbtn').onclick=e=>{e.stopPropagation();colpanel.classList.toggle('open');};
+colpanel.onclick=e=>e.stopPropagation();
+document.addEventListener('click',()=>colpanel.classList.remove('open'));
+document.getElementById('colreset').onclick=()=>{activeCols=ALL_FIELDS.filter(f=>DEFAULT_COLS.includes(f));if(!activeCols.includes(sortKey))sortKey=activeCols[0];buildColPicker();buildHead();render();};
+
+document.getElementById('cmp-run').onclick=runCompare;
+['c-search','c-course','c-thresh'].forEach(id=>document.getElementById(id).oninput=crender);
+document.getElementById('c-grade').onchange=crender;
+['c-stalled','c-newincl'].forEach(id=>document.getElementById(id).onchange=crender);
+document.getElementById('c-export').onclick=cExport;
+
+boot();
+</script>
+</body>
+</html>
