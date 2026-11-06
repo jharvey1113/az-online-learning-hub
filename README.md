@@ -14,6 +14,8 @@ person. Nothing is ever sent: email and call buttons open simulated previews.
 - **Group email by tier.** From the Tier Roster, *Email group* builds review-first BCC drafts to students and parents, split to stay under Gmail's recipient limit.
 - **Send Tiered Emails.** The biweekly run sends one personalized email per student (parents cc'd), PDFs per grade and a digest to each grade's teachers. The demo opens an outbox preview of every message instead of sending.
 - **Outreach Call List.** Tier 3 students 20–60 points behind pace, with credit standing, guardian contacts, a good/concern/good call script and a checkbox to log each call.
+- **Spike Radar (Progress Spikes).** Compares each student's daily progress and active time with *their own* last 12 school days and flags unusual jumps, for example "averaged 1.2%/day, last 3 days averaged 11.7%/day with 59 min of active time." It's an alert for a person to review, not proof of cheating: each flag explains why, shows a chart, and ends in *Looks fine* or *Concern* (which drafts a note to the teacher).
+- **Watch the automation.** A play button at the top of the hub runs the daily data-drop walkthrough ([standalone version](https://jharvey1113.github.io/azol-data-howto/)).
 - **Inactive 5+ days, attendance email, new enrollees with no start yet, life events (held harmless), academic integrity log, enrollment activity.**
 - **Manage Enrollments console.** Browse the full Edgenuity export with filters and column picker, or compare two weekly reports to see who moved and who stalled.
 - **AI analysis.** Sample operator and leadership reports (in the live hub these are written by Gemini on de-identified data).

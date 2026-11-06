@@ -68,6 +68,10 @@
     /* demo badge + about */
     '.demo-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(255,193,7,.18);border:1px solid rgba(255,193,7,.55);color:#ffe08a;border-radius:20px;padding:4px 11px;font-size:10.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:"JetBrains Mono",monospace;}' +
     '.demo-pill:hover{background:rgba(255,193,7,.3);}' +
+    '.demo-play{display:inline-flex;align-items:center;gap:7px;background:#fff;color:#002366;border:0;border-radius:20px;padding:6px 14px;font:700 12px "DM Sans",sans-serif;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);}' +
+    '.demo-play i{color:#8B0000;font-size:10px;}' +
+    '.demo-play:hover{transform:translateY(-1px);}' +
+    '.aw-win{width:min(1320px,100%);height:min(900px,94vh);}' +
     '.ab-win{width:min(640px,100%);}' +
     '.ab-body{padding:22px 26px;overflow:auto;font-size:14px;line-height:1.6;color:#1a1d2e;}' +
     '.ab-body h3{font-family:Outfit,sans-serif;color:#002366;font-size:15px;margin:16px 0 6px;} .ab-body h3:first-child{margin-top:0;}' +
@@ -276,9 +280,28 @@
       '<h3>Where the data comes from</h3><p>Everything is driven by the Edgenuity <b>Manage Enrollments</b> report (plus the student login report). Staff drop the daily export in a Drive folder; a Google Apps Script pipeline scores each course and the hub reads the result.</p>' +
       '<div class="ab-flow"><span>Edgenuity export</span><i class="fa-solid fa-arrow-right"></i><span>Drive drop folder</span><i class="fa-solid fa-arrow-right"></i><span>Apps Script pipeline</span><i class="fa-solid fa-arrow-right"></i><span>Google Sheet</span><i class="fa-solid fa-arrow-right"></i><span>This hub</span></div>' +
       '<h3>How a course is tiered</h3><ul><li>Grade under 70% +1, under 55% +1</li><li>Progress 10–20% behind target +1, 20%+ behind +2</li><li>No login in 5 school days +2</li><li>Score 0 = Tier 1, 1–2 = Tier 2, 3–4 = Tier 3, 5+ = Tier 4. A student\'s tier is their worst course.</li></ul>' +
-      '<h3>Things to try</h3><ul><li>Click a tier in the donut legend, then <b>Email group</b>.</li><li><b>Send Tiered Emails</b> in the sidebar shows every personalized email a run would send.</li><li><b>Outreach Call List</b> opens a call script per student; tick the box to log a call.</li><li><b>Inactive 5+ Days</b> → email all inactive families.</li><li><b>Manage Enrollments</b> opens the full report browser with week-over-week progress compare.</li><li>The Gemini buttons open a sample AI analysis.</li></ul>' +
+      '<h3>Things to try</h3><ul><li><b>▶ Watch the automation</b> (top of the page) plays the daily data drop from Edgenuity to this hub.</li><li><b>Progress Spikes</b> / <b>Spike Radar</b> lists students whose progress jumped well above their own normal pace, for a person to review.</li><li>Click a tier in the donut legend, then <b>Email group</b>.</li><li><b>Send Tiered Emails</b> in the sidebar shows every personalized email a run would send.</li><li><b>Outreach Call List</b> opens a call script per student; tick the box to log a call.</li><li><b>Inactive 5+ Days</b> → email all inactive families.</li><li><b>Manage Enrollments</b> opens the full report browser with week-over-week progress compare.</li><li>The Gemini buttons open a sample AI analysis.</li></ul>' +
       '</div>';
     o.win.querySelector('[data-x]').onclick = o.close;
+  }
+  // The data-drop walkthrough, played inside the hub. When it finishes, the hub refreshes.
+  var HOWTO = 'https://jharvey1113.github.io/azol-data-howto/?embed=1';
+  function watch() {
+    var o = overlay('aw-win');
+    o.win.innerHTML = '<div class="dm-bar"><i class="fa-solid fa-play"></i><span class="t">How the data gets in — the daily automation</span>' +
+      '<a href="' + HOWTO.replace('?embed=1', '') + '" target="_blank" rel="noopener" title="Open in a new tab" style="color:#fff;margin-right:6px;font-size:14px"><i class="fa-solid fa-up-right-from-square"></i></a><button data-x>&times;</button></div>' +
+      '<iframe src="' + HOWTO + '" title="Data automation walkthrough" style="border:0;width:100%;flex:1;min-height:0;background:#f4f6fb" allow="fullscreen"></iframe>';
+    o.win.querySelector('[data-x]').onclick = o.close;
+    function done(e) {
+      if (e.data !== 'azol-howto-done' || !document.body.contains(o.ov)) return;
+      window.removeEventListener('message', done);
+      setTimeout(function () {
+        o.close();
+        if (window.refreshAll) window.refreshAll();
+        toast('<i class="fa-solid fa-rotate" style="color:#81c995"></i><span><b>Today\'s data is loaded.</b> Tiers, the call list, Progress Spikes and the email tools now run from this morning\'s reports.</span>', 6000);
+      }, 2500);
+    }
+    window.addEventListener('message', done);
   }
   function badge() {
     var meta = document.querySelector('.header-meta > div');
@@ -287,7 +310,11 @@
     b.innerHTML = '<i class="fa-solid fa-flask"></i>Demo data';
     b.onclick = about;
     meta.insertBefore(b, meta.firstChild);
-    var fs = document.getElementById('footerStatus');
+    var w = document.createElement('button'); w.className = 'demo-play'; w.title = 'Play the daily automation: Edgenuity reports → Drive → pipeline → hub';
+    w.innerHTML = '<i class="fa-solid fa-play"></i>Watch the automation';
+    w.onclick = watch;
+    meta.insertBefore(w, meta.firstChild);
+    var fs =document.getElementById('footerStatus');
     if (fs) new MutationObserver(function () { if (fs.textContent.indexOf('DEMO') < 0) fs.textContent = fs.textContent.replace('LIVE', 'DEMO'); }).observe(fs, { childList: true });
     var lb = document.querySelector('.live-badge'); if (lb) lb.innerHTML = '<span class="status-dot"></span> DEMO';
   }
